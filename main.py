@@ -35,44 +35,46 @@ class DqnLossInfo(collections.namedtuple('DqnLossInfo',
                                          ('td_loss', 'td_error'))):
     pass
 
+
+def compute_munchausen_td_targets(next_q_values, q_target_values,
+                                  actions, rewards, multi_dim_actions,
+                                  discounts, alpha, entropy_tau):
+    tile_constant = tf.constant([1, 2], dtype=tf.int32)
+
+    next_max_v_values = tf.expand_dims(tf.reduce_max(next_q_values, 1), -1)
+    tau_logsum_next = entropy_tau * tf.reduce_logsumexp((next_q_values - next_max_v_values) / entropy_tau, axis=1)
+    # batch x actions
+    tau_logsum_next = tf.expand_dims(tau_logsum_next, -1)
+    tau_logpi_next = next_q_values - tf.tile(next_max_v_values, tile_constant) - tf.tile(tau_logsum_next, tile_constant)
+
+    pi_target = tf.nn.softmax(next_q_values / entropy_tau, 1)
+    # valid_mask shape: (batch_size, )
+    q_target = discounts * tf.reduce_sum((pi_target * (next_q_values - tau_logpi_next)), 1)  # * valid_mask
+
+    v_target_max = tf.expand_dims(tf.reduce_max(q_target_values, 1), -1)
+    tau_logsum_target = entropy_tau * tf.reduce_logsumexp((q_target_values - v_target_max) / entropy_tau, 1)
+    tau_logsum_target = tf.expand_dims(tau_logsum_target, -1)
+    tau_logpi_target = q_target_values - tf.tile(v_target_max, tile_constant) - tf.tile(tau_logsum_target,
+                                                                                        tile_constant)
+
+    #multi_dim_actions = self._action_spec.shape.rank > 0
+    # munchausen addon uses the current state and actions
+    munchausen_addon = common.index_with_actions(tau_logpi_target,
+                                                 tf.cast(actions, dtype=tf.int32),
+                                                 multi_dim_actions)
+    #rewards = reward_scale_factor * next_time_steps.reward
+    munchausen_reward = rewards + alpha * tf.clip_by_value(munchausen_addon,
+                                                           clip_value_max=0,
+                                                           clip_value_min=-1)
+    td_targets = munchausen_reward + q_target
+
+    return tf.stop_gradient(td_targets)
+
 '''
 def compute_td_targets(next_q_values: types.Tensor,
                        rewards: types.Tensor,
                        discounts: types.Tensor) -> types.Tensor:
   return tf.stop_gradient(rewards + discounts * next_q_values)
-
-
-def compute_munchausen_td_targets(next_q_values: types.Tensor,
-                                  q_target_values: types.Tensor,
-                                  rewards: types.Tensor,
-                                  gamma: types.Tensor,
-                                  entropy_tau: types.Tensor,
-                                  alpha: types.Tensor,
-                                  valid_mask: types.Tensor) -> types.Tensor:
-    max_next_q_values = tf.expand_dims(tf.reduce_max(next_q_values, 1), 1)
-    logsum = tf.math.reduce_logsumexp((next_q_values - max_next_q_values) / entropy_tau, 1)
-    logsum = tf.expand_dims(logsum, 1)
-    tau_logpi_next = next_q_values - max_next_q_values - entropy_tau * logsum
-
-    # target policy
-    pi_target = tf.nn.softmax(next_q_values / entropy_tau, 1)
-    q_target = tf.expand_dims(tf.reduce_sum(gamma * (pi_target * (next_q_values - tau_logpi_next) * valid_mask)), 1)
-
-    v_target_values = tf.expand_dims(tf.reduce_max(q_target_values, 1), 1)
-    logsum = tf.math.reduce_logsumexp((q_target_values - v_target_values) / entropy_tau, 1)
-    logsum = tf.expand_dims(logsum, 1)
-    logpi = q_target_values - v_target_values - entropy_tau * logsum
-
-    # munchausen_idx = tf.expand_dims(tf.range(logpi.shape[0]), 1)
-    # actions_idx = tf.concat([munchausen_idx, tf.reshape(actions, (-1, 1))], axis=-1)
-    # munchausen_addon = tf.gather_nd(logpi, actions_idx)
-    mda = self._action_spec.shape.rank > 0
-    munchausen_addon = common.index_with_actions(logpi, tf.cast(actions, dtype=tf.int32), multi_dim_actions=mda)
-
-    assert munchausen_addon.shape == rewards.shape
-    munchausen_reward = rewards + alpha * tf.clip_by_value(munchausen_addon, clip_value_max=0, clip_value_min=-1)
-
-    return tf.stop_gradient(munchausen_reward + q_target)
 '''
 
 class ShowProgress:
@@ -164,33 +166,17 @@ class MdqnAgent(dqn_agent.DqnAgent):
             #    next_q_values,
             #    rewards=reward_scale_factor * next_time_steps.reward,
             #    discounts=gamma * next_time_steps.discount)
-            tile_constant = tf.constant([1, 2], dtype=tf.int32)
 
-            next_max_v_values = tf.expand_dims(tf.reduce_max(next_q_values, 1), -1)
-            tau_logsum_next = entropy_tau * tf.reduce_logsumexp( (next_q_values - next_max_v_values) / entropy_tau, axis=1)
-            # batch x actions
-            tau_logsum_next = tf.expand_dims(tau_logsum_next, -1)
-            tau_logpi_next = next_q_values - tf.tile(next_max_v_values, tile_constant) - tf.tile(tau_logsum_next, tile_constant)
-
-            pi_target = tf.nn.softmax(next_q_values / entropy_tau, 1)
-            # valid_mask shape: (batch_size, )
-            q_target = tf.reduce_sum(gamma * (pi_target * (next_q_values - tau_logpi_next)), 1) #* valid_mask
-
-            v_target_max = tf.expand_dims(tf.reduce_max(q_target_values, 1), -1)
-            tau_logsum_target = entropy_tau * tf.reduce_logsumexp( (q_target_values - v_target_max) / entropy_tau, 1)
-            tau_logsum_target = tf.expand_dims(tau_logsum_target, -1)
-            tau_logpi_target = q_target_values - tf.tile(v_target_max, tile_constant) - tf.tile(tau_logsum_target, tile_constant)
-
-            multi_dim_actions = self._action_spec.shape.rank > 0
-            # munchausen addon uses the current state and actions
-            munchausen_addon = common.index_with_actions(tau_logpi_target,
-                                                         tf.cast(actions, dtype=tf.int32),
-                                                         multi_dim_actions)
-            rewards = reward_scale_factor * next_time_steps.reward
-            munchausen_reward = rewards + alpha * tf.clip_by_value(munchausen_addon,
-                                                                    clip_value_max=0,
-                                                                    clip_value_min=-1)
-            td_targets = munchausen_reward + q_target
+            td_targets = compute_munchausen_td_targets(
+                next_q_values=next_q_values,
+                q_target_values=q_target_values,
+                actions=actions,
+                rewards=reward_scale_factor * next_time_steps.reward,
+                discounts=gamma * next_time_steps.discount,
+                multi_dim_actions=self._action_spec.shape.rank > 0,
+                alpha=alpha,
+                entropy_tau=entropy_tau
+            )
 
             td_error = valid_mask * (td_targets - q_values)
 
