@@ -1,5 +1,5 @@
-from Munchausen_DQN import *
-#from DPP_DQN import *
+#from Munchausen_DQN import *
+from DPP_DQN import *
 
 
 if __name__ == '__main__':
@@ -34,7 +34,7 @@ if __name__ == '__main__':
     optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate=learning_rate)
 
     train_step_counter = tf.Variable(0)
-    '''
+
     agent = DPPAgent(
         train_env.time_step_spec(),
         train_env.action_spec(),
@@ -52,13 +52,13 @@ if __name__ == '__main__':
         td_errors_loss_fn=common.element_wise_squared_loss,
         train_step_counter=train_step_counter
     )
-
+    '''
     agent.initialize()
 
     eval_policy = agent.policy  # greedy
-    collect_policy = agent.collect_policy  # epsilon greedy
-    #q_policy = tf_agents.policies.q_policy.QPolicy(agent.time_step_spec, agent.action_spec, agent._q_network)
-    #collect_policy = tf_agents.policies.boltzmann_policy.BoltzmannPolicy(q_policy, 0.3)
+    #collect_policy = agent.collect_policy  # epsilon greedy
+    q_policy = tf_agents.policies.q_policy.QPolicy(agent.time_step_spec, agent.action_spec, agent._q_network)
+    collect_policy = tf_agents.policies.boltzmann_policy.BoltzmannPolicy(q_policy, 0.3)
 
     replay_buffer = tf_uniform_replay_buffer.TFUniformReplayBuffer(
         data_spec=agent.collect_data_spec,
