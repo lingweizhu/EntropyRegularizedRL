@@ -23,6 +23,7 @@ from tf_agents.agents import tf_agent
 from tf_agents.utils import nest_utils
 # Press the green button in the gutter to run the script.
 
+#from Munchausen_td import *
 
 class DqnLossInfo(collections.namedtuple('DqnLossInfo',
                                          ('td_loss', 'td_error'))):
@@ -63,12 +64,6 @@ def compute_munchausen_td_targets(next_q_values, q_target_values,
 
     return tf.stop_gradient(td_targets)
 
-'''
-def compute_td_targets(next_q_values: types.Tensor,
-                       rewards: types.Tensor,
-                       discounts: types.Tensor) -> types.Tensor:
-  return tf.stop_gradient(rewards + discounts * next_q_values)
-'''
 
 class ShowProgress:
     def __init__(self, total):

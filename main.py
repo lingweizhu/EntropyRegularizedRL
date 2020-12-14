@@ -1,4 +1,5 @@
-from Munchausen_DQN import *
+#from Munchausen_DQN import *
+from DPP_DQN import *
 
 
 if __name__ == '__main__':
@@ -34,6 +35,15 @@ if __name__ == '__main__':
 
     train_step_counter = tf.Variable(0)
 
+    agent = DPPAgent(
+        train_env.time_step_spec(),
+        train_env.action_spec(),
+        q_network=q_net,
+        optimizer=optimizer,
+        td_errors_loss_fn=common.element_wise_squared_loss,
+        train_step_counter=train_step_counter
+    )
+    '''
     agent = MdqnAgent(
         train_env.time_step_spec(),
         train_env.action_spec(),
@@ -42,7 +52,7 @@ if __name__ == '__main__':
         td_errors_loss_fn=common.element_wise_squared_loss,
         train_step_counter=train_step_counter
     )
-
+    '''
     agent.initialize()
 
     eval_policy = agent.policy  # greedy
