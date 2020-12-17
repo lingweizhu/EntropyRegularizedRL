@@ -1,27 +1,20 @@
-import time
-
-import matplotlib
-import matplotlib.pyplot as plt
-import numpy as np
-
-import tensorflow as tf
 import tf_agents
 import collections
-
-from tf_agents.environments import tf_py_environment
-from tf_agents.environments import suite_gym
 from tf_agents.agents.dqn import dqn_agent
-from tf_agents.drivers import dynamic_step_driver
-from tf_agents.networks import q_network
-from tf_agents.policies import boltzmann_policy, random_tf_policy
-from tf_agents.metrics import tf_metrics
-from tf_agents.replay_buffers import tf_uniform_replay_buffer
-from tf_agents.utils import common
-from tf_agents.trajectories import trajectory
-from tf_agents.eval import metric_utils
+
+import tensorflow as tf
+
+from tf_agents.agents import data_converter
 from tf_agents.agents import tf_agent
+from tf_agents.networks import network
+from tf_agents.trajectories import time_step as ts
+from tf_agents.typing import types
+from tf_agents.utils import common
+from tf_agents.utils import eager_utils
 from tf_agents.utils import nest_utils
 # Press the green button in the gutter to run the script.
+import collections
+from typing import Optional, Text
 
 #from Munchausen_td import *
 
@@ -33,13 +26,14 @@ class DqnLossInfo(collections.namedtuple('DqnLossInfo',
 def compute_munchausen_td_targets(next_q_values, q_target_values,
                                   actions, rewards, multi_dim_actions,
                                   discounts, alpha, entropy_tau):
-    tile_constant = tf.constant([1, 2], dtype=tf.int32)
+    #tile_constant = tf.constant([1, action_num], dtype=tf.int32)
 
     next_max_v_values = tf.expand_dims(tf.reduce_max(next_q_values, 1), -1)
     tau_logsum_next = entropy_tau * tf.reduce_logsumexp((next_q_values - next_max_v_values) / entropy_tau, axis=1)
     # batch x actions
     tau_logsum_next = tf.expand_dims(tau_logsum_next, -1)
-    tau_logpi_next = next_q_values - tf.tile(next_max_v_values, tile_constant) - tf.tile(tau_logsum_next, tile_constant)
+    #tau_logpi_next = next_q_values - tf.tile(next_max_v_values, tile_constant) - tf.tile(tau_logsum_next, tile_constant)
+    tau_logpi_next = next_q_values - next_max_v_values - tau_logsum_next
 
     pi_target = tf.nn.softmax(next_q_values / entropy_tau, 1)
     # valid_mask shape: (batch_size, )
@@ -48,8 +42,7 @@ def compute_munchausen_td_targets(next_q_values, q_target_values,
     v_target_max = tf.expand_dims(tf.reduce_max(q_target_values, 1), -1)
     tau_logsum_target = entropy_tau * tf.reduce_logsumexp((q_target_values - v_target_max) / entropy_tau, 1)
     tau_logsum_target = tf.expand_dims(tau_logsum_target, -1)
-    tau_logpi_target = q_target_values - tf.tile(v_target_max, tile_constant) - tf.tile(tau_logsum_target,
-                                                                                        tile_constant)
+    tau_logpi_target = q_target_values - v_target_max - tau_logsum_target
 
     #multi_dim_actions = self._action_spec.shape.rank > 0
     # munchausen addon uses the current state and actions
@@ -59,7 +52,7 @@ def compute_munchausen_td_targets(next_q_values, q_target_values,
     #rewards = reward_scale_factor * next_time_steps.reward
     munchausen_reward = rewards + alpha * tf.clip_by_value(munchausen_addon,
                                                            clip_value_max=0,
-                                                           clip_value_min=-1)
+                                                           clip_value_min=-2)
     td_targets = munchausen_reward + q_target
 
     return tf.stop_gradient(td_targets)
@@ -80,6 +73,115 @@ class ShowProgress:
 
 
 class MdqnAgent(dqn_agent.DqnAgent):
+
+    def __init__(
+            self,
+            time_step_spec: ts.TimeStep,
+            action_spec: types.NestedTensorSpec,
+            q_network: network.Network,
+            optimizer: types.Optimizer,
+            observation_and_action_constraint_splitter: Optional[
+                types.Splitter] = None,
+            epsilon_greedy: types.Float = 0.1,
+            n_step_update: int = 1,
+            boltzmann_temperature: Optional[types.Int] = None,
+            emit_log_probability: bool = False,
+            # Params for target network updates
+            target_q_network: Optional[network.Network] = None,
+            target_update_tau: types.Float = 1.0,
+            target_update_period: int = 1,
+            # Params for training.
+            td_errors_loss_fn: Optional[types.LossFn] = None,
+            gamma: types.Float = 1.0,
+            reward_scale_factor: types.Float = 1.0,
+            gradient_clipping: Optional[types.Float] = None,
+            # Params for debugging
+            debug_summaries: bool = False,
+            summarize_grads_and_vars: bool = False,
+            train_step_counter: Optional[tf.Variable] = None,
+            name: Optional[Text] = None,
+            entropy_tau: types.Float = 0.9,
+            alpha: types.Float = 0.3
+    ):
+
+        tf.Module.__init__(self, name=name)
+
+        self._check_action_spec(action_spec)
+
+        if epsilon_greedy is not None and boltzmann_temperature is not None:
+            raise ValueError(
+                'Configured both epsilon_greedy value {} and temperature {}, '
+                'however only one of them can be used for exploration.'.format(
+                    epsilon_greedy, boltzmann_temperature))
+
+        self._observation_and_action_constraint_splitter = (
+            observation_and_action_constraint_splitter)
+        self._q_network = q_network
+        net_observation_spec = time_step_spec.observation
+        if observation_and_action_constraint_splitter:
+            net_observation_spec, _ = observation_and_action_constraint_splitter(
+                net_observation_spec)
+        q_network.create_variables(net_observation_spec)
+        if target_q_network:
+            target_q_network.create_variables(net_observation_spec)
+        self._target_q_network = common.maybe_copy_target_network_with_checks(
+            self._q_network, target_q_network, input_spec=net_observation_spec,
+            name='TargetQNetwork')
+
+        self._check_network_output(self._q_network, 'q_network')
+        self._check_network_output(self._target_q_network, 'target_q_network')
+
+        self._epsilon_greedy = epsilon_greedy
+        self._n_step_update = n_step_update
+        self._boltzmann_temperature = boltzmann_temperature
+        self._optimizer = optimizer
+        self._td_errors_loss_fn = (
+                td_errors_loss_fn or common.element_wise_huber_loss)
+        self._gamma = gamma
+        self._reward_scale_factor = reward_scale_factor
+        self._gradient_clipping = gradient_clipping
+        self._update_target = self._get_target_updater(
+            target_update_tau, target_update_period)
+        self.entropy_tau = entropy_tau
+        self.alpha = alpha
+
+        policy, collect_policy = self._setup_policy(time_step_spec, action_spec,
+                                                    boltzmann_temperature,
+                                                    emit_log_probability)
+
+        if q_network.state_spec and n_step_update != 1:
+            raise NotImplementedError(
+                'DqnAgent does not currently support n-step updates with stateful '
+                'networks (i.e., RNNs), but n_step_update = {}'.format(n_step_update))
+
+        train_sequence_length = (
+            n_step_update + 1 if not q_network.state_spec else None)
+
+        super(dqn_agent.DqnAgent, self).__init__(
+            time_step_spec,
+            action_spec,
+            policy,
+            collect_policy,
+            train_sequence_length=train_sequence_length,
+            debug_summaries=debug_summaries,
+            summarize_grads_and_vars=summarize_grads_and_vars,
+            train_step_counter=train_step_counter,
+            validate_args=False,
+        )
+
+        if q_network.state_spec:
+            # AsNStepTransition does not support emitting [B, T, ...] tensors,
+            # which we need for DQN-RNN.
+            self._as_transition = data_converter.AsTransition(
+                self.data_context, squeeze_time_dim=False)
+        else:
+            # This reduces the n-step return and removes the extra time dimension,
+            # allowing the rest of the computations to be independent of the
+            # n-step parameter.
+            self._as_transition = data_converter.AsNStepTransition(
+                self.data_context, gamma=gamma, n=n_step_update)
+
+
 
     def _compute_all_q_values(self, time_steps, actions, training=False):
         network_observation = time_steps.observation
@@ -132,8 +234,7 @@ class MdqnAgent(dqn_agent.DqnAgent):
 
     def _loss(self, experience, td_errors_loss_fn=common.element_wise_huber_loss, gamma=1.0, reward_scale_factor=1.0,
               weights=None, training=False):
-        alpha = tf.constant(0.9, tf.float32)
-        entropy_tau = tf.constant(0.3, tf.float32)
+
 
         transition = self._as_transition(experience)
         time_steps, policy_steps, next_time_steps = transition
@@ -164,8 +265,8 @@ class MdqnAgent(dqn_agent.DqnAgent):
                 rewards=reward_scale_factor * next_time_steps.reward,
                 discounts=gamma * next_time_steps.discount,
                 multi_dim_actions=self._action_spec.shape.rank > 0,
-                alpha=alpha,
-                entropy_tau=entropy_tau
+                alpha=self.alpha,
+                entropy_tau=self.entropy_tau
             )
 
             td_error = valid_mask * (td_targets - q_values)
