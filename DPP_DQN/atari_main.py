@@ -38,10 +38,10 @@ if __name__ == '__main__':
     train_env = tf_py_environment.TFPyEnvironment(env)
     eval_env = tf_py_environment.TFPyEnvironment(env)
 
-    num_iterations = 20000  # @param {type:"integer"}
-    replay_buffer_max_length = 1000000  # @param {type:"integer"}
+    num_iterations = 27000  # @param {type:"integer"}
+    replay_buffer_max_length = 300000  # @param {type:"integer"}
 
-    batch_size = 64  # @param {type:"integer"}
+    batch_size = 128  # @param {type:"integer"}
 
     num_eval_episodes = 10  # @param {type:"integer"}
     eval_interval = 1000  # @param {type:"integer"}
@@ -60,9 +60,10 @@ if __name__ == '__main__':
 
     train_step_counter = tf.Variable(0)
     update_period = 4
-    entropy_tau = 0.9
-    alpha = 0.3
-    optimizer = tf.compat.v1.train.RMSPropOptimizer(learning_rate=2.5e-4, decay=0.95, momentum=0.0, epsilon=0.00001, centered=True)
+    entropy_tau = 1
+    alpha = 0.9
+    #optimizer = tf.compat.v1.train.RMSPropOptimizer(learning_rate=2.5e-4, decay=0.95, momentum=0.0, epsilon=0.00001, centered=True)
+    optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate=1e-5)
     epsilon_fn = tf.keras.optimizers.schedules.PolynomialDecay(initial_learning_rate=1.0, decay_steps=250000 // update_period, end_learning_rate=0.01)
 
     agent = DPPAgent(
@@ -81,10 +82,10 @@ if __name__ == '__main__':
 
     agent.initialize()
 
-    eval_policy = agent.policy  # greedy
-    collect_policy = agent.collect_policy  # epsilon greedy
-    # q_policy = tf_agents.policies.q_policy.QPolicy(agent.time_step_spec, agent.action_spec, agent._q_network)
-    # collect_policy = tf_agents.policies.boltzmann_policy.BoltzmannPolicy(q_policy, 0.3)
+    #eval_policy = agent.policy  # greedy
+    #collect_policy = agent.collect_policy  # epsilon greedy
+    q_policy = tf_agents.policies.q_policy.QPolicy(agent.time_step_spec, agent.action_spec, agent._q_network)
+    collect_policy = tf_agents.policies.boltzmann_policy.BoltzmannPolicy(q_policy, entropy_tau)
 
     replay_buffer = tf_uniform_replay_buffer.TFUniformReplayBuffer(
         data_spec=agent.collect_data_spec,

@@ -85,8 +85,8 @@ class DPPAgent(dqn_agent.DqnAgent):
             summarize_grads_and_vars: bool = False,
             train_step_counter: Optional[tf.Variable] = None,
             name: Optional[Text] = None,
-            entropy_tau: types.Float = 0.95,
-            alpha: types.Float = 0.3
+            entropy_tau: types.Float = 0.1,
+            alpha: types.Float = 0.95
     ):
 
         tf.Module.__init__(self, name=name)

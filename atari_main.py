@@ -50,7 +50,7 @@ if __name__ == '__main__':
     train_step_counter = tf.Variable(0)
     update_period = 4
     entropy_tau = 0.9
-    alpha = 0.3
+    alpha = 0.1
     optimizer = tf.compat.v1.train.RMSPropOptimizer(learning_rate=2.5e-4, decay=0.95, momentum=0.0, epsilon=0.00001, centered=True)
     epsilon_fn = tf.keras.optimizers.schedules.PolynomialDecay(initial_learning_rate=1.0, decay_steps=250000 // update_period, end_learning_rate=0.01)
 
