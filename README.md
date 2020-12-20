@@ -6,7 +6,7 @@ Might extend to a complete version later.
 
 
 ## Dynamic Policy Programming and Conservative Value Iteration
-I used the same architecture for all algorithms here. You can modify the algorithm to be either on-policy or off-policy by changing the collect policy which I commented outin the main file (as DQN is off-policy and DPP is on-policy).
+I used the same architecture for all algorithms here. You can modify the algorithm to be either on-policy or off-policy by changing the collect policy which I commented out in the main file (as DQN is off-policy and DPP is on-policy).
 
 Check the foundational paper [Dynamic Policy Programming](https://jmlr.org/papers/volume13/azar12a/azar12a.pdf) (DPP) for the theoretical part. [Conservative Value Iteration](http://proceedings.mlr.press/v89/kozuno19a/kozuno19a.pdf) provides more theoretical insights on the roles played by Softmax/KL/Action Gap. 
 
