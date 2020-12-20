@@ -8,13 +8,10 @@ from tf_agents.networks import network
 from tf_agents.trajectories import time_step as ts
 from tf_agents.typing import types
 from tf_agents.utils import common
-from tf_agents.utils import eager_utils
 from tf_agents.utils import nest_utils
-# Press the green button in the gutter to run the script.
 import collections
 from typing import Optional, Text
 
-#from Munchausen_td import *
 
 class DqnLossInfo(collections.namedtuple('DqnLossInfo',
                                          ('td_loss', 'td_error'))):
@@ -24,10 +21,8 @@ class DqnLossInfo(collections.namedtuple('DqnLossInfo',
 def compute_dpp_td_targets(next_p_values, p_target_values,
                                   actions, rewards, multi_dim_actions,
                                   discounts, alpha, entropy_tau):
-    #tile_constant = tf.constant([1, 2], dtype=tf.int32)
 
     boltzmann_p = tf.reduce_sum(tf.nn.softmax(p_target_values / entropy_tau, axis=1) * p_target_values, 1)
-    #boltzmann_p = entropy_tau * tf.reduce_logsumexp(p_target_values / entropy_tau, 1)
 
     p_target_values = common.index_with_actions(p_target_values,
                               tf.cast(actions, dtype=tf.int32),
@@ -35,7 +30,6 @@ def compute_dpp_td_targets(next_p_values, p_target_values,
 
     action_gap = alpha * (p_target_values - boltzmann_p)
 
-    #next_boltzmann_p = discounts * entropy_tau * tf.reduce_logsumexp(next_p_values / entropy_tau, 1)
     next_boltzmann_p = tf.reduce_sum(tf.nn.softmax(next_p_values / entropy_tau, axis=1) * next_p_values, 1)
 
     td_targets = rewards + discounts * next_boltzmann_p + action_gap

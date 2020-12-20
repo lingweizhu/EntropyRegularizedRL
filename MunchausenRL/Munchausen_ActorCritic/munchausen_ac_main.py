@@ -1,25 +1,13 @@
-import base64
-import base64
-import imageio
-import IPython
-import matplotlib.pyplot as plt
-import os
 import tempfile
-import PIL.Image
-
 from Munchausen_ActorCritic import MunchausenACAgent, ShowProgress
-
 import tensorflow as tf
 
 from tf_agents.agents.ddpg import critic_network
 from tf_agents.agents.sac import tanh_normal_projection_network
 from tf_agents.environments import suite_pybullet, tf_py_environment
 from tf_agents.replay_buffers import tf_uniform_replay_buffer
-from tf_agents.experimental.train import actor
-from tf_agents.experimental.train import learner
-from tf_agents.experimental.train import triggers
 from tf_agents.experimental.train.utils import spec_utils
-from tf_agents.experimental.train.utils import strategy_utils
+
 from tf_agents.experimental.train.utils import train_utils
 from tf_agents.networks import actor_distribution_network
 from tf_agents.metrics import tf_metrics
@@ -143,7 +131,7 @@ if __name__ == '__main__':
     driver.run = common.function(driver.run)
 
     time_step = None
-    policy_state = agent.collect_policy.get_initial_state(train_env.batch_size)
+    policy_state = agent.collect_policy.get_initial_state(collect_env.batch_size)
     iterator = iter(dataset)
 
     for iteration in range(num_iterations):

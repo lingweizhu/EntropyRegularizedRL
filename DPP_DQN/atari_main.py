@@ -1,7 +1,10 @@
-from Munchausen_ActorCritic.Munchausen_DQN.Munchausen_DQN import *
-# from DPP_DQN import *
-from DPP_DQN import *
-# from DPP_DQN import *
+from DPP_DQN import ShowProgress, DPPAgent
+
+import tensorflow as tf
+import numpy as np
+import tf_agents
+
+from tf_agents.utils import common
 from tf_agents.environments import suite_atari
 from tf_agents.environments.atari_preprocessing import AtariPreprocessing
 from tf_agents.environments.atari_wrappers import FrameStack4

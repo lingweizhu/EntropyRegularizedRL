@@ -1,5 +1,4 @@
-import tf_agents
-import collections
+
 from tf_agents.agents.dqn import dqn_agent
 
 import tensorflow as tf
@@ -10,9 +9,8 @@ from tf_agents.networks import network
 from tf_agents.trajectories import time_step as ts
 from tf_agents.typing import types
 from tf_agents.utils import common
-from tf_agents.utils import eager_utils
 from tf_agents.utils import nest_utils
-# Press the green button in the gutter to run the script.
+
 import collections
 from typing import Optional, Text
 
@@ -26,13 +24,11 @@ class DqnLossInfo(collections.namedtuple('DqnLossInfo',
 def compute_munchausen_td_targets(next_q_values, q_target_values,
                                   actions, rewards, multi_dim_actions,
                                   discounts, alpha, entropy_tau):
-    #tile_constant = tf.constant([1, action_num], dtype=tf.int32)
 
     next_max_v_values = tf.expand_dims(tf.reduce_max(next_q_values, 1), -1)
     tau_logsum_next = entropy_tau * tf.reduce_logsumexp((next_q_values - next_max_v_values) / entropy_tau, axis=1)
     # batch x actions
     tau_logsum_next = tf.expand_dims(tau_logsum_next, -1)
-    #tau_logpi_next = next_q_values - tf.tile(next_max_v_values, tile_constant) - tf.tile(tau_logsum_next, tile_constant)
     tau_logpi_next = next_q_values - next_max_v_values - tau_logsum_next
 
     pi_target = tf.nn.softmax(next_q_values / entropy_tau, 1)
@@ -44,7 +40,6 @@ def compute_munchausen_td_targets(next_q_values, q_target_values,
     tau_logsum_target = tf.expand_dims(tau_logsum_target, -1)
     tau_logpi_target = q_target_values - v_target_max - tau_logsum_target
 
-    #multi_dim_actions = self._action_spec.shape.rank > 0
     # munchausen addon uses the current state and actions
     munchausen_addon = common.index_with_actions(tau_logpi_target,
                                                  tf.cast(actions, dtype=tf.int32),
