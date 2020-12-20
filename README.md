@@ -8,7 +8,9 @@ Might extend to a complete version later.
 ## Dynamic Policy Programming and Conservative Value Iteration
 I used the same architecture for all algorithms here. You can modify the algorithm to be either on-policy or off-policy by changing the collect policy which I commented outin the main file (as DQN is off-policy and DPP is on-policy).
 
-Check the foundational paper [Dynamic Policy Programming](https://jmlr.org/papers/volume13/azar12a/azar12a.pdf) (DPP) the theoretical part. Check [Conservative Value Iteration](http://proceedings.mlr.press/v89/kozuno19a/kozuno19a.pdf) which is a generalization of DPP also. 
+Check the foundational paper [Dynamic Policy Programming](https://jmlr.org/papers/volume13/azar12a/azar12a.pdf) (DPP) for the theoretical part. [Conservative Value Iteration](http://proceedings.mlr.press/v89/kozuno19a/kozuno19a.pdf) provides more theoretical insights on the roles played by Softmax/KL/Action Gap. 
+
+There has been many extensions of DPP on practical problems, see e.g. [Deep Dual DPP for robotic control](https://ieeexplore.ieee.org/document/8205960), [Kernel DPP](https://www.sciencedirect.com/science/article/pii/S0893608017301430), [Factorial Fastfood DPP](https://www.sciencedirect.com/science/article/pii/S0967066120300186).
 
 Note that by its nature DPP tends to diverge (**Corollary 4**. of DPP paper), check also the paper **Momemtum in Reinforcement Learning** (below) for discussion. If you want to implement DPP or CVI for very long horizon tasks, you might want to clip the preference function P or estimate the Q function instead and add log-policy to it, instead of directly estimating P.
 
