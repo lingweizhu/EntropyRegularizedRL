@@ -569,9 +569,6 @@ class MomentumAgent(dqn_agent.DqnAgent):
           eager_utils.add_gradients_summaries(grads_and_vars,
                                               self.train_step_counter)
         self._optimizer.apply_gradients(grads_and_vars)
-        self.train_step_counter.assign_add(1)
-
-        self._update_target()
 
         # H-network training
         with tf.GradientTape() as tape:

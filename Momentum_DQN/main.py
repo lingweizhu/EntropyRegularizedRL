@@ -21,7 +21,7 @@ if __name__ == '__main__':
     train_env = tf_py_environment.TFPyEnvironment(env)
     eval_env = tf_py_environment.TFPyEnvironment(env)
 
-    num_iterations = 45000  # @param {type:"integer"}
+    num_iterations = 20000  # @param {type:"integer"}
 
     initial_collect_steps = 100  # @param {type:"integer"}
     collect_steps_per_iteration = 1  # @param {type:"integer"}
@@ -52,11 +52,11 @@ if __name__ == '__main__':
     optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate=learning_rate)
     train_step_counter = tf.Variable(0)
     epsilon_fn = tf.keras.optimizers.schedules.PolynomialDecay(initial_learning_rate=1.0,
-                                                               decay_steps=45000 // update_period,
+                                                               decay_steps=20000 // update_period,
                                                                end_learning_rate=0.01)
     # beta schedule: look for "On the mixture rate" paragraph of Sec. 5
     beta_fn = tf.keras.optimizers.schedules.InverseTimeDecay(initial_learning_rate=1.0,
-                                                             decay_steps=45000 // update_period,
+                                                             decay_steps=20000 // update_period,
                                                              decay_rate=0.96)
 
     agent = MomentumAgent(
