@@ -129,5 +129,3 @@ if __name__ == '__main__':
         print("\r{} loss: {:.5f}".format(iteration, train_loss.loss.numpy()), end="")
         if iteration % 1000 == 0:
             print(" average return: ",train_metrics[1].result().numpy())
-
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
