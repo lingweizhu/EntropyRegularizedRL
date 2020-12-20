@@ -1,6 +1,8 @@
 # Entropy-regularized Reinforcement Learning
 
-This repository contains my attempt to build entropy-regularized reinforcement learning algorithms. For convenience I just subclass existing modules from [TF Agents](https://github.com/tensorflow/agents) for replay buffer and driver. Those work efficiently under tensorflow framework. Might extend to a complete version later.
+This repository contains my attempt to build entropy-regularized reinforcement learning algorithms. For convenience I just subclass existing modules from [TF Agents](https://github.com/tensorflow/agents) for replay buffer and driver. Those work efficiently under tensorflow framework. Make sure you have tensorflow and TF Agents installed.
+
+Might extend to a complete version later.
 
 
 ## Dynamic Policy Programming and Conservative Value Iteration
