@@ -21,7 +21,9 @@ if __name__ == '__main__':
     tempdir = tempfile.gettempdir()
     env_name = "MinitaurBulletEnv-v0"
 
-    num_iterations = 100000
+    writer = tf.summary.create_file_writer("MunchausenAC_logs/")
+
+    num_iterations = 500000
     initial_collect_steps = 10000
     collect_step_per_iteration = 1
     replay_buffer_capacity = 10000
@@ -94,7 +96,7 @@ if __name__ == '__main__':
 
 
     replay_buffer = tf_uniform_replay_buffer.TFUniformReplayBuffer(
-        data_spec=agent.collect_data_spec(),
+        data_spec=agent.collect_data_spec,
         batch_size=collect_env.batch_size,
         max_length=replay_buffer_capacity
     )
@@ -141,3 +143,6 @@ if __name__ == '__main__':
         print("\r{} loss: {:.5f}".format(iteration, train_loss.loss.numpy()), end="")
         if (iteration + 1) % 100 == 0:
             print("average return: ", train_metrics[1].result().numpy())
+            with writer.as_default():
+                tf.summary.scalar("Mean return", train_metrics[1].result().numpy(), step=iteration)
+                tf.summary.scalar("loss", train_loss.loss.numpy(), step=iteration)

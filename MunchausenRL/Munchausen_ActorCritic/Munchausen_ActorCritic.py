@@ -2,6 +2,7 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 
 from tf_agents.agents import tf_agent
+from tf_agents.agents import data_converter
 from tf_agents.networks import network
 from tf_agents.policies import actor_policy
 from tf_agents.policies import tf_policy
@@ -52,7 +53,7 @@ class MunchausenACAgent(sac_agent.SacAgent):
                  target_update_period: types.Int = 1,
                  td_errors_loss_fn: types.LossFn = tf.math.squared_difference,
                  gamma: types.Float = 1.0,
-                 sigma:types.Float = 0.9,
+                 sigma: types.Float = 0.9,
                  reward_scale_factor: types.Float = 1.0,
                  initial_log_alpha: types.Float = 0.0,
                  use_log_alpha_in_alpha_loss: bool = True,
@@ -151,7 +152,7 @@ class MunchausenACAgent(sac_agent.SacAgent):
 
         train_sequence_length = 2 if not critic_network.state_spec else None
 
-        super(MunchausenACAgent, self).__init__(
+        super(sac_agent.SacAgent, self).__init__(
             time_step_spec,
             action_spec,
             policy=policy,
